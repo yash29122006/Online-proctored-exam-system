@@ -1,0 +1,85 @@
+[
+  {
+    "id": "att-seed-001",
+    "studentName": "Alice Chen",
+    "studentId": "CS-2024-041",
+    "examTitle": "AI & Systems Architecture Examination",
+    "startTime": "2026-09-10T10:00:00.000Z",
+    "endTime": "2026-09-10T10:08:42.000Z",
+    "score": 5,
+    "totalQuestions": 5,
+    "riskScore": 0,
+    "status": "COMPLETED",
+    "plagiarismScore": 4.2,
+    "events": []
+  },
+  {
+    "id": "att-seed-002",
+    "studentName": "Bob Miller",
+    "studentId": "CS-2024-089",
+    "examTitle": "AI & Systems Architecture Examination",
+    "startTime": "2026-09-10T10:40:00.000Z",
+    "endTime": "2026-09-10T10:45:12.000Z",
+    "score": 2,
+    "totalQuestions": 5,
+    "riskScore": 65,
+    "status": "TERMINATED",
+    "plagiarismScore": 78.5,
+    "events": [
+      {
+        "id": "evt-s1",
+        "timestamp": "10:42:31",
+        "category": "Clipboard",
+        "type": "Copy Attempt",
+        "description": "Question content copied to external clipboard",
+        "points": 15,
+        "cumulativeRisk": 15
+      },
+      {
+        "id": "evt-s2",
+        "timestamp": "10:43:08",
+        "category": "Browser",
+        "type": "Tab Switch",
+        "description": "Exam browser window lost focus / background tab switched",
+        "points": 10,
+        "cumulativeRisk": 25
+      },
+      {
+        "id": "evt-s3",
+        "timestamp": "10:44:21",
+        "category": "Vision",
+        "type": "Face Not Detected",
+        "description": "Candidate moved out of webcam frame for > 3 seconds",
+        "points": 10,
+        "cumulativeRisk": 35
+      },
+      {
+        "id": "evt-s4",
+        "timestamp": "10:45:12",
+        "category": "Audio",
+        "type": "Unexpected Speech",
+        "description": "Secondary voice / acoustic energy exceeded ambient threshold",
+        "points": 30,
+        "cumulativeRisk": 65
+      },
+      {
+        "id": "evt-s5",
+        "timestamp": "10:45:12",
+        "category": "System",
+        "type": "Threshold Crossed",
+        "description": "Risk score (65) exceeded maximum integrity tolerance (60)",
+        "points": 0,
+        "cumulativeRisk": 65
+      },
+      {
+        "id": "evt-s6",
+        "timestamp": "10:45:12",
+        "category": "System",
+        "type": "Exam Terminated",
+        "description": "Session automatically locked and submitted for administrative review",
+        "points": 0,
+        "cumulativeRisk": 65
+      }
+    ]
+  }
+]

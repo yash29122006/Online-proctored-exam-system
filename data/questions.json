@@ -1,0 +1,62 @@
+[
+  {
+    "id": 1,
+    "question": "In supervised machine learning, which phenomenon occurs when a model performs exceptionally well on training data but fails to generalize to unseen test data?",
+    "options": [
+      "Underfitting",
+      "Overfitting",
+      "Data Normalization",
+      "Gradient Descent"
+    ],
+    "correctIndex": 1,
+    "explanation": "Overfitting happens when a model learns the training data and noise too closely, failing to generalize to new data."
+  },
+  {
+    "id": 2,
+    "question": "What is the primary function of the Self-Attention mechanism in Transformer architectures?",
+    "options": [
+      "To compress audio waveforms into spectrograms",
+      "To dynamically weigh the significance of different tokens relative to each other",
+      "To eliminate the need for GPU parallel computation",
+      "To serialize tokens sequentially one at a time like RNNs"
+    ],
+    "correctIndex": 1,
+    "explanation": "Self-attention enables the model to weigh different parts of an input sequence dynamically when encoding any given token."
+  },
+  {
+    "id": 3,
+    "question": "Which HTTP status code signifies that the client is not authorized to access a requested resource due to lack of valid credentials?",
+    "options": [
+      "200 OK",
+      "401 Unauthorized",
+      "404 Not Found",
+      "500 Internal Server Error"
+    ],
+    "correctIndex": 1,
+    "explanation": "HTTP 401 Unauthorized indicates that the request requires user authentication."
+  },
+  {
+    "id": 4,
+    "question": "What is the average time complexity of searching for an element in a balanced Binary Search Tree (BST) containing N nodes?",
+    "options": [
+      "O(1)",
+      "O(log N)",
+      "O(N)",
+      "O(N log N)"
+    ],
+    "correctIndex": 1,
+    "explanation": "In a balanced binary search tree, search operations bisect the remaining nodes at each step, yielding O(log N) time."
+  },
+  {
+    "id": 5,
+    "question": "In the context of computer vision and automated proctoring, which algorithm or framework is widely used for real-time facial landmark detection?",
+    "options": [
+      "Dijkstra's Shortest Path",
+      "MediaPipe / Haar Cascades",
+      "RSA Asymmetric Encryption",
+      "B-Tree Indexing"
+    ],
+    "correctIndex": 1,
+    "explanation": "MediaPipe and Haar Cascades are standard computer vision pipelines used for real-time face and landmark detection."
+  }
+]

@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html class="light" lang="en">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>ProctorShield VeriExam - Academic Examination Platform</title>
+
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            background: "#f8fafc",
+            surface: "#f8fafc"
+          },
+          fontFamily: {
+            mono: ["JetBrains Mono", "monospace"],
+            sans: ["Inter", "sans-serif"],
+            headline: ["Plus Jakarta Sans", "sans-serif"]
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- TensorFlow.js & BlazeFace Real-time Face Detection -->
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs@4.17.0/dist/tf.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/blazeface@0.0.7/dist/blazeface.min.js"></script>
+
+  <style>
+    @layer base { 
+      html, body { margin: 0; padding: 0; } 
+      body { overscroll-behavior: none; } 
+    } 
+    ::-webkit-scrollbar { display: none; }
+
+    /* Custom Toast Notifications */
+    .toast-container {
+      position: fixed;
+      top: 74px;
+      right: 20px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast-item {
+      pointer-events: auto;
+      min-width: 300px;
+      max-width: 380px;
+      background: #ffffff;
+      border: 1px solid #fecaca;
+      box-shadow: 0 10px 25px -5px rgba(239, 68, 68, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+      border-left: 4px solid #ef4444;
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      animation: slideInRight 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 font-sans text-slate-800 antialiased min-h-screen">
+
+  <!-- ================= TOAST NOTIFICATION CONTAINER ================= -->
+  <div id="toastContainer" class="toast-container"></div>
+
+  <!-- ================= TOP NAVIGATION BAR ================= -->
+  <header class="fixed top-0 w-full z-50 bg-white border-b border-slate-200 shadow-sm">
+    <div class="h-16 w-full px-6 flex items-center justify-between gap-4">
+      
+      <!-- Brand & Exam Meta -->
+      <div class="flex items-center gap-6">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center text-white shadow-sm">
+            <span class="material-symbols-outlined text-[20px]">verified_user</span>
+          </div>
+          <div class="flex flex-col">
+            <span class="font-headline text-lg font-bold tracking-tight text-slate-900 leading-tight">ProctorShield</span>
+            <span class="font-mono text-[10px] text-blue-700 font-semibold uppercase tracking-widest">VeriExam Core v4.2</span>
+          </div>
+        </div>
+
+        <div class="hidden xl:flex items-center gap-3 px-3 py-1.5 bg-slate-100/80 rounded-lg border border-slate-200/70">
+          <div class="flex flex-col">
+            <span class="text-xs text-slate-800 font-semibold" id="topExamTitle">CS402: Distributed Systems Final</span>
+            <span class="font-mono text-[11px] text-slate-500">5 Assessment Questions • Proctored Session</span>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-1 bg-amber-50 text-amber-900 border border-amber-200 rounded-md shadow-xs">
+            <span class="material-symbols-outlined text-amber-600 text-[16px]">timer</span>
+            <span class="font-mono text-xs font-bold" id="examTimerDisplay">10:00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation & Role Switcher -->
+      <nav class="flex items-center bg-slate-100 p-1 rounded-lg border border-slate-200">
+        <button id="roleBtnStudent" class="px-3.5 py-1.5 text-xs font-semibold rounded-md transition-colors bg-blue-600 text-white shadow-xs" onclick="switchRole('student')">
+          Student Exam View
+        </button>
+        <button id="roleBtnFaculty" class="text-xs font-medium px-3.5 py-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-200/60 transition-colors" onclick="switchRole('faculty')">
+          Faculty Audit Console
+        </button>
+      </nav>
+
+      <!-- System Health Badges & Reset -->
+      <div class="flex items-center gap-3">
+        <div class="hidden lg:flex items-center gap-2 px-2.5 py-1 bg-emerald-50 border border-emerald-200 rounded-md">
+          <div class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span class="font-mono text-[11px] text-emerald-700 font-semibold" id="camMicStatusBadge">CAM &amp; MIC ON</span>
+          </div>
+          <span class="text-slate-300 font-mono text-[11px]">|</span>
+          <div class="flex items-center gap-1">
+            <span class="material-symbols-outlined text-slate-600 text-[14px]">fullscreen</span>
+            <span class="font-mono text-[11px] text-slate-700 font-medium">LOCKDOWN</span>
+          </div>
+        </div>
+
+        <button class="px-3 py-1.5 rounded-lg border border-slate-200 bg-slate-50 hover:bg-red-50 hover:text-red-700 hover:border-red-200 text-slate-600 font-mono text-xs font-medium transition-all" onclick="resetDemoData()" title="Reset attempts to clean seed state">
+          Reset Demo
+        </button>
+
+        <div class="w-8 h-8 rounded-full bg-blue-100 border border-blue-200 text-blue-700 flex items-center justify-center font-bold text-xs">
+          <span class="material-symbols-outlined text-[18px]">person</span>
+        </div>
+      </div>
+
+    </div>
+  </header>
+
+  <main class="w-full pt-16 bg-slate-50">
+
+    <!-- ================= VIEW 1: CANDIDATE SYSTEM VERIFICATION (PRE-CHECK) ================= -->
+    <section id="viewPrecheck" class="view-section w-full max-w-4xl mx-auto px-6 py-10">
+      <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col gap-6">
+        
+        <div class="flex flex-col gap-1 border-b border-slate-100 pb-5">
+          <div class="flex items-center gap-2">
+            <span class="px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 font-mono text-xs font-bold uppercase tracking-wider">
+              SECURE ASSESSMENT GATEWAY
+            </span>
+            <span class="text-slate-400 text-xs">•</span>
+            <span class="font-mono text-xs text-slate-500">System Verification</span>
+          </div>
+          <h1 class="font-headline text-2xl font-bold text-slate-900 tracking-tight mt-1">
+            Candidate Identity &amp; Hardware Readiness
+          </h1>
+          <p class="text-sm text-slate-600">
+            Confirm your identity credentials, camera orientation, and microphone noise floor before launching the secure locked examination session.
+          </p>
+        </div>
+
+        <!-- Candidate Input Form -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="flex flex-col gap-1.5">
+            <label class="font-mono text-xs font-bold uppercase tracking-wider text-slate-600" for="inputStudentName">
+              Candidate Full Name
+            </label>
+            <input class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none" id="inputStudentName" type="text" value="Marcus Vance"/>
+          </div>
+          <div class="flex flex-col gap-1.5">
+            <label class="font-mono text-xs font-bold uppercase tracking-wider text-slate-600" for="inputStudentId">
+              Student ID / Roll Number
+            </label>
+            <input class="w-full px-3.5 py-2 rounded-lg border border-slate-300 text-sm font-medium focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none" id="inputStudentId" type="text" value="ENG-9042"/>
+          </div>
+        </div>
+
+        <!-- Hardware Checks Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-5 pt-2">
+          <!-- Video Verification Preview -->
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-blue-700">videocam</span>
+                Webcam &amp; AI Face Lock
+              </span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold" id="camStatusBadge">
+                Live Stream
+              </span>
+            </div>
+            <div class="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shadow-inner">
+              <video id="precheckVideo" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
+              <canvas id="precheckFaceCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+            </div>
+            <p class="text-xs text-slate-500 font-medium leading-relaxed">
+              Maintain center gaze. Looking away &gt;2s activates graduated risk penalties.
+            </p>
+          </div>
+
+          <!-- Mic Audio Verification Preview -->
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <span class="font-mono text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-[16px] text-blue-700">mic</span>
+                Microphone Audio Floor
+              </span>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-bold" id="micStatusBadge">
+                Active
+              </span>
+            </div>
+            <div class="h-32 bg-white rounded-lg border border-slate-200 p-4 flex flex-col justify-center gap-3">
+              <div class="flex items-center justify-between font-mono text-xs text-slate-600">
+                <span>Signal Level:</span>
+                <span class="text-emerald-700 font-bold" id="precheckAudioDecibel">18 dB (Nominal)</span>
+              </div>
+              <div class="w-full h-3 bg-slate-100 rounded-full overflow-hidden border border-slate-200">
+                <div id="precheckAudioBar" class="h-full bg-emerald-500 transition-all duration-100 rounded-full" style="width: 25%;"></div>
+              </div>
+              <span class="font-mono text-[11px] text-slate-400">Audio limit monitoring active</span>
+            </div>
+            <p class="text-xs text-slate-500 font-medium leading-relaxed">
+              Quiet environment required. Audio spikes exceeding limit deduct 15 points.
+            </p>
+          </div>
+        </div>
+
+        <!-- Academic Integrity Calibration Box -->
+        <div class="bg-blue-50/70 border border-blue-200 rounded-xl p-4 flex items-start gap-3">
+          <span class="material-symbols-outlined text-blue-700 text-[20px] mt-0.5">info</span>
+          <div class="flex flex-col gap-1.5 text-xs text-slate-700 w-full">
+            <span class="font-bold text-slate-900 text-sm">Configured Integrity Penalty Rules:</span>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+              <div class="p-2 bg-white rounded border border-blue-200/80">
+                <span class="font-bold text-blue-900">👤 Look Away Duration Tiers:</span>
+                <ul class="list-disc pl-4 mt-0.5 text-[11px] text-slate-600">
+                  <li><strong>&lt; 2 sec</strong>: 0 pts (Grace / blink)</li>
+                  <li><strong>2 - 7 sec</strong>: 5 pts deduction</li>
+                  <li><strong>7 - 15 sec</strong>: 15 pts deduction</li>
+                  <li><strong>&gt; 15 sec</strong>: 30 pts deduction</li>
+                </ul>
+              </div>
+              <div class="p-2 bg-white rounded border border-blue-200/80">
+                <span class="font-bold text-blue-900">⚡ Actions &amp; Audio Penalties:</span>
+                <ul class="list-disc pl-4 mt-0.5 text-[11px] text-slate-600">
+                  <li><strong>Audio Exceeded Limit</strong>: 15 pts</li>
+                  <li><strong>Copy, Paste, Save, Print</strong>: 10 pts each</li>
+                  <li><strong>Fullscreen Exit, Tab Switch</strong>: 10 pts each</li>
+                  <li><strong>Critical Lockout</strong>: &ge; 60 pts terminates session</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <button class="w-full py-3.5 px-6 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm transition-all shadow-md flex items-center justify-center gap-2" onclick="startExamSession()">
+          <span class="material-symbols-outlined text-[18px]">lock</span>
+          <span>Launch Locked Exam Environment &amp; Enter Fullscreen</span>
+        </button>
+
+      </div>
+    </section>
+
+    <!-- ================= VIEW 2: ACTIVE STUDENT EXAM ================= -->
+    <section id="viewExam" class="view-section hidden flex-col w-full">
+      
+      <!-- Exam Meta Alert Ribbon -->
+      <div class="w-full bg-white border-b border-slate-200 px-6 py-2 flex flex-wrap items-center justify-between gap-2 shadow-xs">
+        <div class="flex items-center gap-3">
+          <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-slate-800 font-mono text-xs">
+            <span class="material-symbols-outlined text-[15px] text-emerald-600">security</span>
+            <span class="uppercase tracking-wider font-semibold" id="ribbonCandidateTag">Candidate: Marcus Vance (ID: #ENG-9042)</span>
+          </div>
+          <div class="flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono text-[11px]">
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+            <span>Secure Lockdown Browser Active • Single-Screen Verified</span>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 font-mono text-[11px] text-slate-500">
+          <span class="flex items-center gap-1 text-slate-600 font-medium">
+            <span class="material-symbols-outlined text-[14px] text-emerald-600">sync</span> 
+            Auto-Save: Synchronized
+          </span>
+          <span class="text-slate-300">|</span>
+          <span class="text-blue-700 font-medium" id="sessionTokenTag">Session Token: 7a8f-22e0</span>
+        </div>
+      </div>
+
+      <!-- Main Split Examination Workspace -->
+      <div class="w-full px-6 py-5 grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        
+        <!-- LEFT COLUMN: Exam Assessment Workspace (7 of 12 cols) -->
+        <div class="lg:col-span-7 flex flex-col gap-4">
+          
+          <!-- Stepper & Progress Navigation Pill Strip -->
+          <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="font-mono text-xs text-blue-700 font-bold tracking-wider" id="sectionTag">SECTION A: CORE CONCEPTS</span>
+                <span class="text-slate-300 text-xs">•</span>
+                <span class="text-xs text-slate-500 font-medium" id="questionProgressCounter">Question 1 of 5</span>
+              </div>
+              <div class="flex items-center gap-2">
+                <button class="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-slate-100 hover:bg-slate-200/70 border border-slate-200 text-slate-700 transition-colors" id="flagBtn" onclick="toggleFlag()">
+                  <span class="material-symbols-outlined text-[16px] text-amber-600" id="flagIcon">bookmark_border</span>
+                  <span class="text-xs font-semibold" id="flagText">Flag for Review</span>
+                </button>
+                <span class="px-2.5 py-1 rounded bg-slate-100 border border-slate-200 text-slate-700 font-mono text-[11px] font-bold">10 PTS</span>
+              </div>
+            </div>
+
+            <!-- Dynamic Question Navigation Pills -->
+            <div class="grid grid-cols-5 gap-2 pt-1" id="questionPillsContainer">
+              <!-- Rendered dynamically -->
+            </div>
+          </div>
+
+          <!-- Active Question Stem Card -->
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col gap-4" id="examContainer">
+            <div class="flex flex-col gap-1.5">
+              <div class="flex items-center gap-1.5 text-blue-700 font-mono text-xs uppercase tracking-wider font-bold">
+                <span class="material-symbols-outlined text-[16px]">quiz</span>
+                <span id="qCategoryTag">Algorithms &amp; System Principles</span>
+              </div>
+              <h2 class="font-headline text-slate-900 font-bold text-xl leading-snug" id="qText">
+                Loading assessment question...
+              </h2>
+            </div>
+
+            <!-- MCQ Response Options Container -->
+            <div class="flex flex-col gap-2.5 pt-2" id="optionsContainer">
+              <!-- Rendered dynamically -->
+            </div>
+
+            <!-- Answer Actions & Next Navigation -->
+            <div class="flex flex-wrap items-center justify-between gap-3 pt-4 border-t border-slate-100 mt-2">
+              <div class="flex items-center gap-2">
+                <button class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-100 text-xs font-semibold transition-colors" id="btnPrevQ" onclick="navigateQuestion(-1)">
+                  <span class="material-symbols-outlined text-[16px]">arrow_back</span>
+                  <span>Previous Question</span>
+                </button>
+                <button class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 text-xs font-semibold transition-colors shadow-xs" id="btnNextQ" onclick="navigateQuestion(1)">
+                  <span>Next Question</span>
+                  <span class="material-symbols-outlined text-[16px]">arrow_forward</span>
+                </button>
+              </div>
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs text-emerald-700 font-semibold flex items-center gap-1">
+                  <span class="material-symbols-outlined text-[16px] text-emerald-600">check_circle</span>
+                  Autosaved
+                </span>
+                <button class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-xs transition-all" id="btnSubmitExam" onclick="showFinalSubmitModal()">
+                  Submit Final Exam
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Quick Session Statistics Footnote -->
+          <div class="grid grid-cols-3 gap-3">
+            <div class="bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-3 shadow-xs">
+              <div class="w-8 h-8 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700">
+                <span class="material-symbols-outlined text-[18px]">assignment_turned_in</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-mono text-sm text-slate-900 font-bold" id="statCompletedCount">1 / 5</span>
+                <span class="text-[11px] text-slate-500 font-medium">Completed</span>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-3 shadow-xs">
+              <div class="w-8 h-8 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-700">
+                <span class="material-symbols-outlined text-[18px]">flag</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-mono text-sm text-slate-900 font-bold" id="statFlaggedCount">0 Review</span>
+                <span class="text-[11px] text-slate-500 font-medium">Marked for Check</span>
+              </div>
+            </div>
+            <div class="bg-white border border-slate-200 p-3 rounded-xl flex items-center gap-3 shadow-xs">
+              <div class="w-8 h-8 rounded-lg bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-700">
+                <span class="material-symbols-outlined text-[18px]">hourglass_bottom</span>
+              </div>
+              <div class="flex flex-col">
+                <span class="font-mono text-sm text-slate-900 font-bold" id="statRemainingTime">10m 00s</span>
+                <span class="text-[11px] text-slate-500 font-medium">Remaining</span>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT COLUMN: Live AI Proctoring HUD & Real-Time Event Tracker (5 of 12 cols) -->
+        <div class="lg:col-span-5 flex flex-col gap-4">
+          
+          <!-- Live Proctor Telemetry Video Feed Preview -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3 relative">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <span class="relative flex h-2.5 w-2.5">
+                  <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-600"></span>
+                </span>
+                <span class="font-mono text-xs font-bold text-slate-900 uppercase tracking-wider">AI Biometric Telemetry HUD</span>
+              </div>
+              <span class="font-mono text-[11px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-blue-700 font-bold">1080P • 30 FPS</span>
+            </div>
+
+            <!-- Video Stream Container with Real-Time Face Canvas Overlay -->
+            <div class="relative w-full aspect-video rounded-lg overflow-hidden bg-slate-900 border border-slate-200 shadow-inner">
+              <video id="proctorPipVideo" class="w-full h-full object-cover scale-x-[-1]" autoplay playsinline muted></video>
+              <canvas id="proctorFaceCanvas" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+              
+              <!-- Bottom Telemetry Banner Overlay -->
+              <div class="absolute bottom-0 inset-x-0 bg-slate-900/85 backdrop-blur-sm py-1.5 px-3 flex items-center justify-between font-mono text-[11px] text-white">
+                <div class="flex items-center gap-1.5">
+                  <span class="w-2 h-2 rounded-full bg-emerald-400" id="hudFaceDot"></span>
+                  <span class="text-emerald-300 font-semibold" id="camStatusText">Face Detected: 1 Person</span>
+                </div>
+                <div class="flex items-center gap-1 text-slate-300">
+                  <span id="gazeStatusText">Gaze: Center (0.02°)</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Real-Time Microphone Decibel Audio Visualizer Meter -->
+            <div class="bg-slate-50 border border-slate-200 p-2.5 rounded-lg flex flex-col gap-1.5">
+              <div class="flex items-center justify-between font-mono text-[11px] text-slate-600">
+                <div class="flex items-center gap-1.5">
+                  <span class="material-symbols-outlined text-[15px] text-emerald-600">mic</span>
+                  <span class="text-slate-800 font-medium">Ambient Audio Decibel Feed</span>
+                </div>
+                <span class="font-mono text-emerald-700 font-bold" id="dbValue">18 dB (Nominal)</span>
+              </div>
+              <!-- 12-Segment Micro Visualizer Bar -->
+              <div class="grid grid-cols-12 gap-1 h-2 w-full" id="audioMeter">
+                <div class="bg-emerald-500 rounded-xs"></div>
+                <div class="bg-emerald-500 rounded-xs"></div>
+                <div class="bg-emerald-500 rounded-xs"></div>
+                <div class="bg-emerald-300 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+                <div class="bg-slate-200 rounded-xs"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Real-Time Risk / Integrity Score Gauge -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-blue-700 text-[20px]">shield_with_heart</span>
+                <span class="font-headline text-slate-900 font-bold text-base">Session Integrity Risk</span>
+              </div>
+              <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-600 uppercase font-bold">Auto-Termination at 60</span>
+            </div>
+
+            <div class="flex items-baseline justify-between pt-1">
+              <div class="flex items-baseline gap-1.5">
+                <span class="font-headline text-3xl font-extrabold text-slate-900 tracking-tight" id="riskScoreDisplay">0</span>
+                <span class="font-mono text-sm text-slate-500 font-semibold">/ 60 threshold</span>
+              </div>
+              <div class="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono text-[11px] font-bold uppercase tracking-wider" id="riskBadgeStatus">
+                Nominal Compliance
+              </div>
+            </div>
+
+            <!-- Segmented Risk Scale Track -->
+            <div class="relative w-full h-3 bg-slate-100 border border-slate-200 rounded-full overflow-hidden flex">
+              <div class="h-full bg-emerald-500 transition-all duration-500 rounded-full" id="riskProgressBar" style="width: 0%;"></div>
+            </div>
+            <div class="flex items-center justify-between font-mono text-[11px] text-slate-500">
+              <span class="text-emerald-700 font-semibold">0 - 30 (Low Risk)</span>
+              <span class="text-amber-700 font-semibold">31 - 59 (Review Zone)</span>
+              <span class="text-red-700 font-semibold">60+ (Terminated)</span>
+            </div>
+          </div>
+
+          <!-- Live Trigger Test Bench (Hackathon Demo Simulator) -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-3">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-blue-700 text-[18px]">bolt</span>
+                <span class="font-headline text-slate-900 font-bold text-sm">Judge / Hackathon Trigger Test Bench</span>
+              </div>
+              <span class="font-mono text-[10px] px-2 py-0.5 rounded bg-blue-50 border border-blue-200 text-blue-700 font-bold">Calibrated Rules</span>
+            </div>
+            <p class="text-xs text-slate-500 leading-normal">
+              Click below to test duration-tiered look away detection, audio limit breach, and 10 pt anti-cheat shortcuts:
+            </p>
+
+            <!-- Look Away Duration Tier Simulator Buttons -->
+            <div class="flex flex-col gap-1.5 pt-0.5">
+              <span class="font-mono text-[10px] uppercase font-bold text-slate-500">Look Away Duration Tiers:</span>
+              <div class="grid grid-cols-3 gap-2">
+                <button class="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-left transition-all group" onclick="triggerDemoViolation('lookaway-tier1')">
+                  <span class="text-[11px] font-semibold text-slate-800 group-hover:text-blue-700">2 - 7 sec</span>
+                  <span class="font-mono text-[10px] text-amber-700 font-bold">+5 pts</span>
+                </button>
+                <button class="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-left transition-all group" onclick="triggerDemoViolation('lookaway-tier2')">
+                  <span class="text-[11px] font-semibold text-slate-800 group-hover:text-blue-700">7 - 15 sec</span>
+                  <span class="font-mono text-[10px] text-amber-700 font-bold">+15 pts</span>
+                </button>
+                <button class="flex flex-col p-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-left transition-all group" onclick="triggerDemoViolation('lookaway-tier3')">
+                  <span class="text-[11px] font-semibold text-slate-800 group-hover:text-blue-700">&gt; 15 sec</span>
+                  <span class="font-mono text-[10px] text-red-700 font-bold">+30 pts</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Action Violations Buttons Grid (10 pts & 15 pts) -->
+            <div class="flex flex-col gap-1.5 pt-1">
+              <span class="font-mono text-[10px] uppercase font-bold text-slate-500">Shortcut, Audio &amp; System Actions:</span>
+              <div class="grid grid-cols-2 gap-2">
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('copy')">
+                  <span class="text-xs group-hover:text-blue-700">Copy Attempt</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('paste')">
+                  <span class="text-xs group-hover:text-blue-700">Paste Attempt</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('save')">
+                  <span class="text-xs group-hover:text-blue-700">Save (Ctrl+S)</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('print')">
+                  <span class="text-xs group-hover:text-blue-700">Print (Ctrl+P)</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('tab')">
+                  <span class="text-xs group-hover:text-blue-700">Tab Switch</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('fullscreen')">
+                  <span class="text-xs group-hover:text-blue-700">Fullscreen Exit</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-amber-50 border border-amber-200 text-amber-800 font-bold">+10</span>
+                </button>
+                <button class="col-span-2 flex items-center justify-between px-3 py-2 rounded-lg bg-slate-50 border border-slate-200 hover:bg-slate-100 text-slate-800 text-left transition-all group font-semibold" onclick="triggerDemoViolation('speech')">
+                  <span class="text-xs group-hover:text-blue-700">Audio Level Exceeded (Voice / Noise Spike)</span>
+                  <span class="font-mono text-[11px] px-1.5 py-0.5 rounded bg-red-50 border border-red-200 text-red-700 font-bold">+15</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Instant Exceed Threshold Button -->
+            <button class="w-full mt-1 py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 text-white font-semibold text-xs flex items-center justify-center gap-1.5 transition-all shadow-xs" onclick="triggerDemoBreach()">
+              <span class="material-symbols-outlined text-[16px]">gavel</span>
+              <span>Trigger Threshold Exceeded (≥60 Auto-Lockout)</span>
+            </button>
+          </div>
+
+          <!-- Live Forensic Detected Events Log -->
+          <div class="bg-white border border-slate-200 rounded-xl shadow-sm p-5 flex flex-col gap-2.5">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-1.5">
+                <span class="material-symbols-outlined text-blue-700 text-[18px]">history_edu</span>
+                <span class="font-headline text-slate-900 font-bold text-xs uppercase tracking-wider">Detected Event Log</span>
+              </div>
+              <span class="font-mono text-[11px] text-slate-500" id="eventCount">0 Recorded Flags</span>
+            </div>
+            <div class="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-1" id="eventsLogContainer">
+              <div class="text-xs text-slate-400 font-mono text-center py-4">
+                No integrity anomalies recorded yet.
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ================= VIEW 3: POST-EXAM EVALUATION REPORT ================= -->
+    <section id="viewResult" class="view-section hidden w-full max-w-4xl mx-auto px-6 py-10">
+      <div class="bg-white border border-slate-200 rounded-2xl p-8 shadow-sm flex flex-col gap-6">
+        
+        <div class="flex flex-wrap items-center justify-between gap-4 border-b border-slate-100 pb-5">
+          <div class="flex flex-col">
+            <span class="font-mono text-xs text-blue-700 font-bold uppercase tracking-wider">OFFICIAL SESSION EVALUATION</span>
+            <h1 class="font-headline text-2xl font-bold text-slate-900 tracking-tight mt-1" id="reportCandidateInfo">
+              Marcus Vance (#ENG-9042)
+            </h1>
+            <span class="font-mono text-xs text-slate-500" id="reportTimestamp">CS402 Final • Submitted Just Now</span>
+          </div>
+          <div id="reportStatusBadge" class="px-3.5 py-1.5 rounded-full font-mono text-xs font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-200">
+            SUCCESSFULLY COMPLETED
+          </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col">
+            <span class="font-mono text-xs font-bold text-slate-500 uppercase">Assessment Score</span>
+            <span class="font-headline text-3xl font-extrabold text-slate-900 mt-1" id="reportScoreDisplay">4 / 5</span>
+            <span class="text-xs text-slate-500 mt-0.5">80% Competency Metric</span>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col">
+            <span class="font-mono text-xs font-bold text-slate-500 uppercase">Integrity Risk</span>
+            <span class="font-headline text-3xl font-extrabold text-emerald-700 mt-1" id="reportRiskDisplay">0 / 60</span>
+            <span class="text-xs text-slate-500 mt-0.5">Acceptable Institutional Standard</span>
+          </div>
+          <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl flex flex-col">
+            <span class="font-mono text-xs font-bold text-slate-500 uppercase">Plagiarism / Similarity</span>
+            <span class="font-headline text-3xl font-extrabold text-slate-900 mt-1" id="reportPlagiarismDisplay">3.2%</span>
+            <span class="text-xs text-slate-500 mt-0.5">Automated Cross-Check</span>
+          </div>
+        </div>
+
+        <!-- Forensic Timeline Container -->
+        <div class="flex flex-col gap-3 pt-2">
+          <div class="flex items-center justify-between">
+            <span class="font-headline text-sm font-bold text-slate-900">Session Forensic Event Timeline</span>
+            <span class="font-mono text-xs text-slate-500" id="reportEventCount">0 events recorded</span>
+          </div>
+          <div class="flex flex-col gap-2 max-h-72 overflow-y-auto pr-1" id="reportTimelineList">
+            <!-- Timeline items rendered dynamically -->
+          </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+          <button class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-xs transition-all shadow-xs" onclick="switchRole('student')">
+            Begin Another Assessment Session
+          </button>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- ================= VIEW 4: FACULTY AUDIT CONSOLE ================= -->
+    <section id="viewFaculty" class="view-section hidden w-full max-w-6xl mx-auto px-6 py-8">
+      <div class="flex flex-col gap-6">
+        
+        <!-- Header & Refresh -->
+        <div class="flex items-center justify-between">
+          <div class="flex flex-col">
+            <h1 class="font-headline text-2xl font-bold text-slate-900">Faculty Integrity Audit Console</h1>
+            <p class="text-xs text-slate-500 font-medium">
+              Forensic inspection registry of all completed and automatically terminated candidate attempts.
+            </p>
+          </div>
+          <button class="flex items-center gap-1.5 px-3.5 py-2 rounded-lg bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold shadow-xs transition-all" onclick="loadFacultyAttempts()">
+            <span class="material-symbols-outlined text-[16px]">refresh</span>
+            <span>Refresh Submissions</span>
+          </button>
+        </div>
+
+        <!-- KPI Metrics Strip -->
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-col">
+            <span class="font-mono text-xs font-bold text-slate-500 uppercase">Total Submissions</span>
+            <span class="font-headline text-3xl font-extrabold text-slate-900 mt-1" id="facKpiTotal">0</span>
+          </div>
+          <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-col">
+            <span class="font-mono text-xs font-bold text-emerald-700 uppercase">Clean Sessions</span>
+            <span class="font-headline text-3xl font-extrabold text-emerald-700 mt-1" id="facKpiClean">0</span>
+          </div>
+          <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-col">
+            <span class="font-mono text-xs font-bold text-red-700 uppercase">Auto-Terminated</span>
+            <span class="font-headline text-3xl font-extrabold text-red-700 mt-1" id="facKpiTerminated">0</span>
+          </div>
+          <div class="bg-white border border-slate-200 p-4 rounded-xl shadow-xs flex flex-col">
+            <span class="font-mono text-xs font-bold text-slate-500 uppercase">Avg. Risk Score</span>
+            <span class="font-headline text-3xl font-extrabold text-slate-900 mt-1" id="facKpiAvgRisk">0</span>
+          </div>
+        </div>
+
+        <!-- Submissions Table Card -->
+        <div class="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+          <div class="px-6 py-4 border-b border-slate-200 flex items-center justify-between">
+            <span class="font-headline text-sm font-bold text-slate-900">Live Exam Submissions</span>
+            <span class="font-mono text-xs text-slate-500">Auto-Refreshed via Local Monolith</span>
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-50/75 border-b border-slate-200 font-mono text-[11px] text-slate-500 uppercase tracking-wider">
+                  <th class="px-6 py-3 font-semibold">Candidate</th>
+                  <th class="px-6 py-3 font-semibold">Exam Score</th>
+                  <th class="px-6 py-3 font-semibold">Integrity Risk</th>
+                  <th class="px-6 py-3 font-semibold">Flagged Events</th>
+                  <th class="px-6 py-3 font-semibold">Status</th>
+                  <th class="px-6 py-3 font-semibold">Timestamp</th>
+                  <th class="px-6 py-3 font-semibold text-right">Audit Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100 text-xs font-medium" id="facultyTableBody">
+                <!-- Rendered dynamically -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ================= AUTOMATIC TERMINATION MODAL OVERLAY ================= -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-6" id="terminationModal">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-lg w-full p-6 shadow-2xl flex flex-col gap-4">
+      <div class="w-12 h-12 rounded-xl bg-red-100 border border-red-200 text-red-700 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[28px]">lock</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <div class="flex items-center gap-2">
+          <span class="px-2 py-0.5 rounded bg-red-100 text-red-800 border border-red-200 font-mono text-[10px] font-bold uppercase">INTEGRITY LOCKOUT</span>
+          <span class="font-mono text-xs text-slate-500">VIOLATION CODE: 0x994_RISK_OVERFLOW</span>
+        </div>
+        <h3 class="font-headline text-lg font-bold text-slate-900">Examination Session Suspended</h3>
+        <p class="text-xs text-slate-600 mt-1 leading-relaxed">
+          Your accumulated risk score has breached the institutional integrity cutoff (<span class="font-mono text-red-700 font-bold" id="modalRiskScore">65</span> / 60 max). All test-taking inputs have been secured, frozen, and submitted for disciplinary review.
+        </p>
+      </div>
+      <div class="bg-slate-50 border border-slate-200 p-3 rounded-lg flex flex-col gap-1.5 font-mono text-xs text-slate-600">
+        <div class="flex items-center justify-between">
+          <span>Camera Stream State:</span>
+          <span class="text-slate-900 font-semibold">Archived to Forensic Log</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Incident Code:</span>
+          <span class="text-blue-700 font-semibold">INC-CS402-AUTO-TERM</span>
+        </div>
+        <div class="flex items-center justify-between">
+          <span>Proctor Status:</span>
+          <span class="text-red-700 font-semibold">Flagged for Academic Board Review</span>
+        </div>
+      </div>
+      <div class="flex items-center justify-end gap-2 pt-1">
+        <button class="px-4 py-2 rounded-lg bg-red-600 hover:bg-red-700 text-white text-xs font-bold shadow-xs transition-all" onclick="handleCloseTerminationModal()">
+          View Forensic Integrity Audit Report →
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FULLSCREEN WARNING MODAL OVERLAY ================= -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm hidden p-6" id="fullscreenWarningModal">
+    <div class="bg-white border border-amber-300 rounded-2xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
+      <div class="w-12 h-12 rounded-xl bg-amber-100 border border-amber-200 text-amber-800 flex items-center justify-center">
+        <span class="material-symbols-outlined text-[28px]">fullscreen_exit</span>
+      </div>
+      <div class="flex flex-col gap-1">
+        <span class="px-2 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-200 font-mono text-[10px] font-bold uppercase self-start">
+          FULLSCREEN LOCKOUT BREACH
+        </span>
+        <h3 class="font-headline text-base font-bold text-slate-900 mt-1">You Have Exited Fullscreen Mode!</h3>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          The examination environment requires continuous Fullscreen mode. Exiting fullscreen has been recorded on your audit log (+10 Risk Points).
+        </p>
+      </div>
+      <div class="flex items-center justify-end pt-2">
+        <button class="px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs shadow-xs transition-all" onclick="reEnterFullscreen()">
+          Return to Fullscreen Mode ⛶
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SUBMISSION CONFIRMATION MODAL ================= -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-6" id="submitModal">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-md w-full p-6 shadow-2xl flex flex-col gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-emerald-100 border border-emerald-200 text-emerald-800 flex items-center justify-center">
+          <span class="material-symbols-outlined text-[22px]">send</span>
+        </div>
+        <div>
+          <h3 class="font-headline text-base font-bold text-slate-900">Final Exam Submission</h3>
+          <p class="font-mono text-xs text-slate-500">CS402 Distributed Systems Final</p>
+        </div>
+      </div>
+      <p class="text-xs text-slate-600 leading-relaxed" id="submitModalText">
+        Are you sure you want to finalize your examination answers? Once submitted, your answers and integrity report will be securely transferred.
+      </p>
+      <div class="flex items-center justify-end gap-2 pt-2">
+        <button class="px-3.5 py-2 rounded-lg bg-slate-100 hover:bg-slate-200 border border-slate-200 text-slate-700 text-xs font-semibold" onclick="document.getElementById('submitModal').classList.add('hidden')">
+          Return to Exam
+        </button>
+        <button class="px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs" onclick="confirmSubmitExamNow()">
+          Confirm &amp; Finalize
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FACULTY DRILLDOWN MODAL ================= -->
+  <div class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm hidden p-6" id="facultyDetailModal">
+    <div class="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-6 shadow-2xl flex flex-col gap-5 max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-4">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-50 border border-blue-200 text-blue-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[22px]">history_edu</span>
+          </div>
+          <div class="flex flex-col">
+            <h3 class="font-headline text-base font-bold text-slate-900" id="modalStudentName">Marcus Vance</h3>
+            <span class="font-mono text-xs text-slate-500" id="modalStudentMeta">ID: #ENG-9042 • CS402 Distributed Systems Final</span>
+          </div>
+        </div>
+        <button class="w-8 h-8 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center" onclick="closeFacultyModal()">
+          ✕
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col">
+          <span class="font-mono text-[10px] uppercase font-bold text-slate-500">Score</span>
+          <span class="font-headline text-xl font-bold text-slate-900" id="modalScoreDisplay">4 / 5</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col">
+          <span class="font-mono text-[10px] uppercase font-bold text-slate-500">Integrity Risk</span>
+          <span class="font-headline text-xl font-bold text-slate-900" id="modalRiskDisplay">25 / 60</span>
+        </div>
+        <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl flex flex-col">
+          <span class="font-mono text-[10px] uppercase font-bold text-slate-500">Similarity</span>
+          <span class="font-headline text-xl font-bold text-slate-900" id="modalPlagiarismDisplay">4.2%</span>
+        </div>
+      </div>
+
+      <div class="flex flex-col gap-2">
+        <span class="font-headline text-xs font-bold text-slate-900 uppercase tracking-wider">Chronological Violation Events</span>
+        <div class="flex flex-col gap-2 max-h-60 overflow-y-auto pr-1" id="modalTimelineList">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="w-full bg-white border-t border-slate-200 py-4 mt-8 shadow-xs">
+    <div class="w-full px-6 flex flex-col md:flex-row items-center justify-between gap-2">
+      <div class="flex items-center gap-2 text-slate-500 font-mono text-[11px]">
+        <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+        <span>SESSION ENCRYPTION: SHA-256 AES-GCM</span>
+        <span class="text-slate-300">•</span>
+        <span>LATENCY: 28ms</span>
+        <span class="text-slate-300">•</span>
+        <span>NODE: us-east-integrity-04</span>
+      </div>
+      <div class="text-slate-500 text-xs">© 2026 ProctorShield VeriExam. Institutional Academic Integrity Engine.</div>
+    </div>
+  </footer>
+
+  <!-- Scripts -->
+  <script src="js/proctor.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
