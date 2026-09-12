@@ -5,6 +5,11 @@ An AI-powered online examination platform developed as a hackathon prototype for
 The system combines an online examination interface with real-time monitoring, browser activity detection, plagiarism/similarity checking, and an integrity tracking mechanism to help identify suspicious activity during online examinations.
 
 ---
+## 🎥 Video Demo
+
+A complete demonstration of the AI-Powered Online Proctored Examination System, including the student examination flow, camera and audio monitoring, integrity tracking, copy detection, threshold-based automatic termination, and faculty-side activity monitoring.
+
+https://github.com/user-attachments/assets/xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 ## 🚀 Live Demo
 
