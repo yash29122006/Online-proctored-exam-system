@@ -9,7 +9,7 @@ The system combines an online examination interface with real-time monitoring, b
 
 A complete demonstration of the AI-Powered Online Proctored Examination System, including the student examination flow, camera and audio monitoring, integrity tracking, copy detection, threshold-based automatic termination, and faculty-side activity monitoring.
 
-(https://github.com/yash29122006/Online-proctored-exam-system/issues/1#issue-5432504161)
+[(https://github.com/yash29122006/Online-proctored-exam-system/issues/1#issue-5432504161)](https://github.com/user-attachments/assets/b8ff5762-13c1-4963-95e3-2e2009f8ef83)
 
 ## 🚀 Live Demo
 
